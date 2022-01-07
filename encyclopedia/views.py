@@ -3,11 +3,11 @@ from markdown2 import Markdown
 from django import forms
 from random import randint
 from os import path
+
 '''
 from django.urls import reverse
 '''
 from django.http import HttpResponseRedirect
-
 
 from . import util
 
@@ -15,6 +15,13 @@ from . import util
 class NewSearchForm(forms.Form):
     searchQuery = forms.CharField(label="", widget=forms.TextInput(attrs={'placeholder': 'Search Encyclopedia',
                                                                           'class': 'search'}))
+
+
+class NewEntryForm(forms.Form):
+    title = forms.CharField(label="", widget=forms.TextInput(
+        attrs={'placeholder': 'Enter title of new wiki entry here...', 'class': 'search'}))
+    entryForm = forms.CharField(
+        widget=forms.Textarea(attrs={'placeholder': 'Enter a new wiki entry here...', 'class': 'search'}), label="")
 
 
 def index(request):
@@ -56,12 +63,14 @@ def wikientry(request, title):
     wiki_entry = util.get_entry(title)
     if wiki_entry is None:
         return render(request, "encyclopedia/entrymissing.html", {
-            "title": title
+            "title": title,
+            "form": NewSearchForm()
         })
     else:
         return render(request, "encyclopedia/wikientry.html", {
             "entryAsHTML": markdowner.convert(wiki_entry),
-            "title": title
+            "title": title,
+            "form": NewSearchForm()
         })
 
 
@@ -74,5 +83,35 @@ def random(request):
     list_string_allentries = util.list_entries()
     int_random = randint(0, len(list_string_allentries) - 1)
     print(f"Entry {list_string_allentries[int_random]} was chosen. Navigating to wiki entry page.")
-    #return wikientry(request, path.splitext(list_string_allentries[int_random])[0])
+    # return wikientry(request, path.splitext(list_string_allentries[int_random])[0])
     return HttpResponseRedirect(path.splitext(list_string_allentries[int_random])[0])
+
+
+def newentry(request):
+    if request.method == "POST":
+
+        newentryform = NewEntryForm(request.POST)
+
+        str_new_entry_title: str
+        str_new_entry_data: str
+
+        # Check if form data is valid (server-side)
+        if newentryform.is_valid():
+            str_new_entry_title, str_new_entry_data = newentryform.cleaned_data["title"], newentryform.cleaned_data["entryForm"]
+
+            if util.search(str_new_entry_title)[0]:
+                return render(request, "encyclopedia/newentry.html", {
+                    "form": NewSearchForm,
+                    "entry": newentryform,
+                    "warning": True
+                })
+            else:
+                f = open(f"entries/{str_new_entry_title}.md", "w+")
+                f.write(str_new_entry_data)
+                f.close()
+                return HttpResponseRedirect(str_new_entry_title)
+    else:
+        return render(request, "encyclopedia/newentry.html", {
+            "form": NewSearchForm(),
+            "entry": NewEntryForm()
+        })
