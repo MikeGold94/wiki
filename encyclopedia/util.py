@@ -35,3 +35,17 @@ def get_entry(title):
         return f.read().decode("utf-8")
     except FileNotFoundError:
         return None
+
+
+def search(query):
+    """
+    Searches for a string 'query' in the entries folder' and returns all results matching the query
+    :param query:
+    :return: string[] results
+    """
+    completematch = [s for s in list_entries() if query == s]
+
+    if len(completematch) == 1:
+        return True, completematch
+    else:
+        return False, [s for s in list_entries() if query in s]
