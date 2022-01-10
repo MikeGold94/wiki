@@ -5,11 +5,10 @@
 {% endblock %}
 
 {% block body %}
-{{ entryAsHTML|safe }}
-
-    <form action="{% url 'encyclopedia:edit' title %}" method="get">
+    <form action="{% url 'encyclopedia:edit' title%}" method="post">
         {% csrf_token %}
-        <input type="submit" value="Edit entry">
+        {{ entry }}
+        <input type="submit" value="Save changes">
     </form>
 
 {% endblock %}

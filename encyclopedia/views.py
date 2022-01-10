@@ -3,10 +3,7 @@ from markdown2 import Markdown
 from django import forms
 from random import randint
 from os import path
-
-'''
 from django.urls import reverse
-'''
 from django.http import HttpResponseRedirect
 
 from . import util
@@ -20,8 +17,13 @@ class NewSearchForm(forms.Form):
 class NewEntryForm(forms.Form):
     title = forms.CharField(label="", widget=forms.TextInput(
         attrs={'placeholder': 'Enter title of new wiki entry here...', 'class': 'search'}))
-    entryForm = forms.CharField(
-        widget=forms.Textarea(attrs={'placeholder': 'Enter a new wiki entry here...', 'class': 'search'}), label="")
+    entryForm = forms.CharField(widget=forms.Textarea(attrs={'placeholder': 'Enter a new wiki entry here...',
+                                                             'class': 'search'}), label="")
+
+
+class EditEntryForm(forms.Form):
+
+    old_entry_form = forms.CharField(widget=forms.Textarea(attrs={'class': 'search'}), label="")
 
 
 def index(request):
@@ -77,32 +79,33 @@ def wikientry(request, title):
 def random(request):
     """
     Returns a random wiki entry
-    :return: render
+    :return: HttpResponseRedirect
     """
     print("Searching for random wiki entry")
     list_string_allentries = util.list_entries()
     int_random = randint(0, len(list_string_allentries) - 1)
     print(f"Entry {list_string_allentries[int_random]} was chosen. Navigating to wiki entry page.")
-    # return wikientry(request, path.splitext(list_string_allentries[int_random])[0])
-    return HttpResponseRedirect(path.splitext(list_string_allentries[int_random])[0])
+    return HttpResponseRedirect(reverse("encyclopedia:wikientry",
+                                        args=(path.splitext(list_string_allentries[int_random])[0],)))
 
 
 def newentry(request):
     if request.method == "POST":
 
-        newentryform = NewEntryForm(request.POST)
+        new_entry_form: NewEntryForm = NewEntryForm(request.POST)
 
         str_new_entry_title: str
         str_new_entry_data: str
 
         # Check if form data is valid (server-side)
-        if newentryform.is_valid():
-            str_new_entry_title, str_new_entry_data = newentryform.cleaned_data["title"], newentryform.cleaned_data["entryForm"]
+        if new_entry_form.is_valid():
+            str_new_entry_title, str_new_entry_data = new_entry_form.cleaned_data["title"], \
+                                                      new_entry_form.cleaned_data["entryForm"]
 
             if util.search(str_new_entry_title)[0]:
                 return render(request, "encyclopedia/newentry.html", {
                     "form": NewSearchForm,
-                    "entry": newentryform,
+                    "entry": new_entry_form,
                     "warning": True
                 })
             else:
@@ -115,3 +118,26 @@ def newentry(request):
             "form": NewSearchForm(),
             "entry": NewEntryForm()
         })
+
+
+def edit(request, title):
+    if request.method == "GET":
+        return render(request, "encyclopedia/editentry.html", {
+            "form": NewSearchForm(),
+            "entry": EditEntryForm(initial={"old_entry_form": util.get_entry(title)}),
+            "title": title
+        })
+    elif request.method == "POST":
+
+        edited_entry: EditEntryForm = EditEntryForm(request.POST)
+
+        str_new_entry_data: str
+
+        # Check if form data is valid (server-side)
+        if edited_entry.is_valid():
+            str_new_entry_data = edited_entry.cleaned_data["old_entry_form"]
+
+            f = open(f"entries/{title}.md", "w+")
+            f.write(str_new_entry_data)
+            f.close()
+            return HttpResponseRedirect(reverse("encyclopedia:wikientry", args=(title,)))
